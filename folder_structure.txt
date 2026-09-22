@@ -1,0 +1,27 @@
+calenderViewAI/
+├── server/                    # Node.js Express backend
+│   ├── app.js                 # Main Express app
+│   ├── db.js                  # SQLite setup & schema
+│   ├── routes/
+│   │   ├── auth.js            # Account creation, login
+│   │   ├── events.js          # Create, edit, delete events
+│   │   └── moderation.js      # Approve/reject suggestions
+│   ├── middleware/
+│   │   └── auth.js            # Session authentication
+│   └── data.sqlite            # SQLite database file
+├── public/                    # Frontend (HTML/CSS/JS)
+│   ├── index.html             # Main calendar page
+│   ├── login.html             # Login/register page
+│   ├── moderation.html        # Moderation dashboard
+│   ├── css/
+│   │   └── style.css          # Styling
+│   └── js/
+│       ├── calendar.js        # Calendar rendering
+│       ├── api.js             # API calls to backend
+│       └── auth.js            # Client-side auth logic
+├── Dockerfile                 # Docker config
+├── docker-compose.yml         # Optional but nice
+├── package.json               # Node dependencies
+├── .dockerignore
+├── .gitignore
+└── README.md                  # Stack choices & trade-offs

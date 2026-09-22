@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar View - Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page">
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>📅 Calendar Events</h1>
+      <p class="subtitle">Community Events Calendar</p>
+
+      <div id="authTabs" class="auth-tabs">
+        <button class="tab-btn active" data-tab="login">Login</button>
+        <button class="tab-btn" data-tab="register">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="auth-form active-tab">
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input
+            type="text"
+            id="loginUsername"
+            name="username"
+            required
+            placeholder="Enter your username"
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input
+            type="password"
+            id="loginPassword"
+            name="password"
+            required
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+
+        <div id="loginError" class="error-message"></div>
+        <div id="loginSuccess" class="success-message"></div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form">
+        <div class="form-group">
+          <label for="regUsername">Username</label>
+          <input
+            type="text"
+            id="regUsername"
+            name="username"
+            required
+            placeholder="Choose a username (min 3 chars)"
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input
+            type="password"
+            id="regPassword"
+            name="password"
+            required
+            placeholder="Choose a password (min 4 chars)"
+            autocomplete="new-password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+
+        <div id="regError" class="error-message"></div>
+        <div id="regSuccess" class="success-message"></div>
+      </form>
+
+      <div class="demo-credentials">
+        <p><strong>Try Demo:</strong></p>
+        <p>Admin: <code>admin</code> / <code>admin123</code></p>
+        <p>User: <code>demo</code> / <code>demo123</code></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "calendar-view-ai",
+  "version": "1.0.0",
+  "description": "Community Events Calendar - AI Hackathon",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node server/app.js"
+  },
+  "keywords": ["calendar", "events", "community"],
+  "author": "Lokesh",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "better-sqlite3": "^9.0.0",
+    "body-parser": "^1.20.2",
+    "bcryptjs": "^2.4.3"
+  }
+}

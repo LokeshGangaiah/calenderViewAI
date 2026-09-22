@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moderation Dashboard - Calendar Events</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <h1>📅 Moderation Dashboard</h1>
+      </div>
+      <div class="nav-menu">
+        <span id="userDisplay" class="user-display"></span>
+        <a href="/" class="btn btn-secondary">← Back to Calendar</a>
+        <button id="logoutBtn" class="btn btn-danger">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-container">
+    <section class="moderation-section">
+      <h2>Pending Event Suggestions</h2>
+
+      <div id="noEvents" class="empty-state">
+        <p>No pending events to moderate 👍</p>
+      </div>
+
+      <div id="pendingList" class="pending-list">
+        <!-- Populated by JavaScript -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Event Detail Modal -->
+  <div id="eventModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close">&times;</span>
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body">
+        <!-- Populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/api.js"></script>
+  <script src="/js/moderation.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>
