@@ -1,22 +1,15 @@
 /**
- * Calendar View Logic
- * Renders calendar grid and manages event display
+ * Calendar View Logic - FIXED VERSION
+ * Fixes for: event updates, success messages, and async/await issues
  */
 
-let currentDate = new Date(2026, 8, 1); // Start with September 2026
+let currentDate = new Date(2026, 8, 1);
 let allEvents = [];
 let selectedTodos = [];
 let editingEventId = null;
 let editingTodos = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Get current user info
-  try {
-    currentUser = await API.auth.me();
-  } catch (err) {
-    console.error('Error getting current user:', err);
-  }
-  
   await loadEvents();
   renderCalendar();
   setupEventListeners();
@@ -41,17 +34,14 @@ function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // Update month display
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   document.getElementById('monthDisplay').textContent =
     `${monthNames[month]} ${year}`;
 
-  // Clear calendar body
   const calendarBody = document.getElementById('calendarBody');
   calendarBody.innerHTML = '';
 
-  // Get first day of month and number of days
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -59,27 +49,22 @@ function renderCalendar() {
   let date = 1;
   let nextMonthDate = 1;
 
-  // Create 6 rows (weeks)
   for (let week = 0; week < 6; week++) {
     const row = document.createElement('tr');
 
-    // 7 columns (days)
     for (let day = 0; day < 7; day++) {
       const cell = document.createElement('td');
       let cellDate = null;
       let cellText = '';
 
       if (week === 0 && day < firstDay) {
-        // Previous month's days
         cellDate = new Date(year, month, -(firstDay - day - 1));
         cellText = daysInPrevMonth - firstDay + day + 1;
         cell.classList.add('other-month');
       } else if (date <= daysInMonth) {
-        // Current month's days
         cellDate = new Date(year, month, date);
         cellText = date;
 
-        // Highlight today
         const today = new Date();
         if (today.getDate() === date &&
             today.getMonth() === month &&
@@ -89,21 +74,18 @@ function renderCalendar() {
 
         date++;
       } else {
-        // Next month's days
         cellDate = new Date(year, month + 1, nextMonthDate);
         cellText = nextMonthDate;
         cell.classList.add('other-month');
         nextMonthDate++;
       }
 
-      // Add date number
       const dateDiv = document.createElement('div');
       dateDiv.textContent = cellText;
       dateDiv.style.fontWeight = 'bold';
       dateDiv.style.marginBottom = '0.25rem';
       cell.appendChild(dateDiv);
 
-      // Add events for this date
       if (cellDate) {
         const dateStr = formatDate(cellDate);
         const dayEvents = allEvents.filter(evt =>
@@ -132,7 +114,6 @@ function renderCalendar() {
         }
       }
 
-      // Click to view day events
       cell.addEventListener('click', () => {
         if (cellDate) {
           showDayEvents(cellDate);
@@ -145,7 +126,6 @@ function renderCalendar() {
     calendarBody.appendChild(row);
   }
 
-  // Update upcoming events sidebar
   updateEventsSidebar();
 }
 
@@ -156,7 +136,6 @@ function updateEventsSidebar() {
   const eventsList = document.getElementById('eventsList');
   eventsList.innerHTML = '';
 
-  // Sort events by date
   const sorted = [...allEvents].sort((a, b) =>
     new Date(a.date_start) - new Date(b.date_start)
   );
@@ -189,33 +168,37 @@ function updateEventsSidebar() {
 /**
  * Check if current user can edit an event
  */
-function canEditEvent(evt) {
-  if (!currentUser) return false;
-  
-  // Moderator can edit any event
-  if (currentUser.isModerator) return true;
-  
-  // Regular user can only edit own pending events
-  return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+async function canEditEvent(evt) {
+  try {
+    const currentUser = await API.auth.me();
+    if (!currentUser) return false;
+    
+    if (currentUser.isModerator) return true;
+    return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+  } catch (err) {
+    return false;
+  }
 }
 
 /**
  * Check if current user can delete an event
  */
-function canDeleteEvent(evt) {
-  if (!currentUser) return false;
-  
-  // Moderator can delete any event
-  if (currentUser.isModerator) return true;
-  
-  // Regular user can only delete own pending events
-  return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+async function canDeleteEvent(evt) {
+  try {
+    const currentUser = await API.auth.me();
+    if (!currentUser) return false;
+    
+    if (currentUser.isModerator) return true;
+    return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+  } catch (err) {
+    return false;
+  }
 }
 
 /**
  * Show event detail modal
  */
-function showEventModal(evt) {
+async function showEventModal(evt) {
   const modal = document.getElementById('eventModal');
   document.getElementById('modalTitle').textContent = evt.title;
 
@@ -238,11 +221,10 @@ function showEventModal(evt) {
     </div>
   `;
 
-  // Add edit/delete buttons if permitted
   const modalActions = document.getElementById('modalActions');
   modalActions.innerHTML = '';
   
-  if (canEditEvent(evt)) {
+  if (await canEditEvent(evt)) {
     const editBtn = document.createElement('button');
     editBtn.className = 'btn btn-primary';
     editBtn.textContent = '✎ Edit';
@@ -250,7 +232,7 @@ function showEventModal(evt) {
     modalActions.appendChild(editBtn);
   }
   
-  if (canDeleteEvent(evt)) {
+  if (await canDeleteEvent(evt)) {
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger';
     deleteBtn.textContent = '🗑 Delete';
@@ -293,7 +275,6 @@ function showDayEvents(date) {
     `).join('');
   }
 
-  // Clear actions for day view
   const modalActions = document.getElementById('modalActions');
   modalActions.innerHTML = '';
 
@@ -314,9 +295,7 @@ function openEditModal(evt) {
   
   renderEditTodoList();
   
-  // Close the event modal
   document.getElementById('eventModal').classList.remove('show');
-  // Open the edit modal
   document.getElementById('editModal').classList.add('show');
 }
 
@@ -375,7 +354,6 @@ async function submitEditEvent(e) {
     return;
   }
 
-  // Validate start date is not in the past
   const today = new Date();
   const todayStr = formatDate(today);
   if (dateStart < todayStr) {
@@ -383,7 +361,6 @@ async function submitEditEvent(e) {
     return;
   }
 
-  // Validate end date is not before start date
   if (dateEnd < dateStart) {
     showError('End date cannot be earlier than start date', 'editError');
     return;
@@ -395,11 +372,11 @@ async function submitEditEvent(e) {
     showSuccess('Event updated successfully!', 'editSuccess');
 
     // Close modal after 2 seconds
-    setTimeout(() => {
+    setTimeout(async () => {
       document.getElementById('editModal').classList.remove('show');
       clearMessages();
-      // Reload events
-      loadEvents();
+      // Reload events - AWAIT this time
+      await loadEvents();
       renderCalendar();
     }, 2000);
   } catch (err) {
@@ -419,7 +396,7 @@ async function deleteEvent(eventId) {
     showStatusMessage('Event deleted successfully!');
     document.getElementById('eventModal').classList.remove('show');
     
-    // Reload events
+    // Reload events - AWAIT this time
     await loadEvents();
     renderCalendar();
   } catch (err) {
@@ -431,7 +408,6 @@ async function deleteEvent(eventId) {
  * Setup event listeners
  */
 function setupEventListeners() {
-  // Month navigation
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
     renderCalendar();
@@ -442,14 +418,12 @@ function setupEventListeners() {
     renderCalendar();
   });
 
-  // Modal close
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
     });
   });
 
-  // Close modal when clicking outside
   document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
@@ -458,31 +432,21 @@ function setupEventListeners() {
     });
   });
 
-  // Suggest Event button
   document.getElementById('suggestBtn').addEventListener('click', () => {
     document.getElementById('suggestModal').classList.add('show');
   });
 
-  // Close suggest modal
   document.querySelectorAll('.close-modal').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
     });
   });
 
-  // Suggest form
   document.getElementById('suggestForm').addEventListener('submit', submitEvent);
-
-  // Edit form
   document.getElementById('editForm').addEventListener('submit', submitEditEvent);
-
-  // Add todo button
   document.getElementById('addTodoBtn').addEventListener('click', addTodo);
-  
-  // Add edit todo button
   document.getElementById('addEditTodoBtn').addEventListener('click', addEditTodo);
 
-  // Set today's date as default and minimum
   const today = new Date();
   const todayStr = formatDate(today);
   document.getElementById('eventDateStart').value = todayStr;
@@ -491,7 +455,6 @@ function setupEventListeners() {
   document.getElementById('editEventDateStart').min = todayStr;
   document.getElementById('editEventDateEnd').min = todayStr;
 
-  // Update end date min when start date changes
   document.getElementById('eventDateStart').addEventListener('change', (e) => {
     const startDate = e.target.value;
     const endDateInput = document.getElementById('eventDateEnd');
@@ -503,7 +466,6 @@ function setupEventListeners() {
     }
   });
 
-  // Update end date min when start date changes in edit form
   document.getElementById('editEventDateStart').addEventListener('change', (e) => {
     const startDate = e.target.value;
     const endDateInput = document.getElementById('editEventDateEnd');
@@ -515,7 +477,6 @@ function setupEventListeners() {
     }
   });
 
-  // Update submit button text based on user role
   updateSubmitButtonText();
 }
 
@@ -573,7 +534,6 @@ async function submitEvent(e) {
     return;
   }
 
-  // Validate start date is not in the past
   const today = new Date();
   const todayStr = formatDate(today);
   if (dateStart < todayStr) {
@@ -581,7 +541,6 @@ async function submitEvent(e) {
     return;
   }
 
-  // Validate end date is not before start date
   if (dateEnd < dateStart) {
     showError('End date cannot be earlier than start date', 'suggestError');
     return;
@@ -590,22 +549,20 @@ async function submitEvent(e) {
   try {
     const result = await API.events.create(title, dateStart, dateEnd, selectedTodos);
 
-    // Reset form
     document.getElementById('suggestForm').reset();
     selectedTodos = [];
     renderTodoList();
 
-    // Update button text after successful submission
     await updateSubmitButtonText();
 
     showSuccess(result.message, 'suggestSuccess');
 
-    // Close modal after 2 seconds
-    setTimeout(() => {
+    // Close modal after 2 seconds - AWAIT loadEvents
+    setTimeout(async () => {
       document.getElementById('suggestModal').classList.remove('show');
       clearMessages();
-      // Reload events to reflect any auto-approved admin events
-      loadEvents();
+      // Reload events - AWAIT this time
+      await loadEvents();
       renderCalendar();
     }, 2000);
   } catch (err) {
