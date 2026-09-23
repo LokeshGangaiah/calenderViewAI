@@ -116,9 +116,14 @@ const API = {
      * Logout
      */
     logout: async () => {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (!res.ok) throw new Error('Logout failed');
-      return res.json();
+      try {
+        const res = await fetch('/api/auth/logout', { method: 'POST' });
+        return res.json();
+      } catch (err) {
+        // Even if logout fails, force redirect to login
+        console.error('Logout error:', err);
+        throw err;
+      }
     }
   },
 
