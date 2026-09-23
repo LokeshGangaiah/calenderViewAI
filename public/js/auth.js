@@ -168,11 +168,16 @@ async function handleRegister(e) {
  * Handle logout
  */
 async function handleLogout() {
+  console.log('handleLogout called'); // Debug: function entered
+  
   try {
+    console.log('Calling API.auth.logout()'); // Debug: about to call API
     await API.auth.logout();
+    console.log('Logout successful, redirecting...'); // Debug: API succeeded
     window.location.href = '/login';
   } catch (err) {
     console.error('Logout error:', err);
+    console.log('Logout failed, force redirecting anyway...'); // Debug: API failed
     // Force redirect anyway
     window.location.href = '/login';
   }
@@ -353,3 +358,5 @@ function escapeHtml(text) {
   };
   return text.replace(/[&<>"']/g, m => map[m]);
 }
+
+
