@@ -236,12 +236,21 @@ function displayPendingEvents(events) {
     const item = document.createElement('div');
     item.classList.add('pending-item');
 
-    const dateStr = new Date(evt.date_start).toLocaleDateString('en-US', {
-      weekday: 'long',
+    const startDateStr = new Date(evt.date_start).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
+
+    const endDateStr = evt.date_end ? new Date(evt.date_end).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }) : startDateStr;
+
+    const dateRangeStr = evt.date_end && evt.date_end !== evt.date_start
+      ? `${startDateStr} to ${endDateStr}`
+      : startDateStr;
 
     let html = `
       <div class="pending-item-header">
@@ -249,7 +258,7 @@ function displayPendingEvents(events) {
           <div class="pending-item-title">${escapeHtml(evt.title)}</div>
           <div class="pending-item-meta">
             <span>By ${escapeHtml(evt.creator_username)}</span>
-            <span> • ${dateStr}</span>
+            <span> • ${dateRangeStr}</span>
           </div>
         </div>
       </div>

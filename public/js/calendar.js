@@ -288,9 +288,28 @@ function setupEventListeners() {
   // Add todo button
   document.getElementById('addTodoBtn').addEventListener('click', addTodo);
 
-  // Set today's date as default
+  // Set today's date as default and minimum
   const today = new Date();
-  document.getElementById('eventDateStart').value = formatDate(today);
+  const todayStr = formatDate(today);
+  document.getElementById('eventDateStart').value = todayStr;
+  document.getElementById('eventDateStart').min = todayStr;
+  document.getElementById('eventDateEnd').min = todayStr;
+
+  // Update end date min when start date changes
+  document.getElementById('eventDateStart').addEventListener('change', (e) => {
+    const startDate = e.target.value;
+    const endDateInput = document.getElementById('eventDateEnd');
+    if (startDate) {
+      endDateInput.min = startDate;
+      // If end date is before new start date, update it
+      if (endDateInput.value < startDate) {
+        endDateInput.value = startDate;
+      }
+    }
+  });
+
+  // Update submit button text based on user role
+  updateSubmitButtonText();
 }
 
 /**
@@ -342,25 +361,44 @@ async function submitEvent(e) {
   const dateStart = document.getElementById('eventDateStart').value;
   const dateEnd = document.getElementById('eventDateEnd').value;
 
-  if (!title || !dateStart) {
-    showError('Please fill in required fields', 'suggestError');
+  if (!title || !dateStart || !dateEnd) {
+    showError('Please fill in all required fields', 'suggestError');
+    return;
+  }
+
+  // Validate start date is not in the past
+  const today = new Date();
+  const todayStr = formatDate(today);
+  if (dateStart < todayStr) {
+    showError('Start date cannot be in the past', 'suggestError');
+    return;
+  }
+
+  // Validate end date is not before start date
+  if (dateEnd < dateStart) {
+    showError('End date cannot be earlier than start date', 'suggestError');
     return;
   }
 
   try {
-    await API.events.create(title, dateStart, dateEnd || dateStart, selectedTodos);
+    await API.events.create(title, dateStart, dateEnd, selectedTodos);
 
     // Reset form
     document.getElementById('suggestForm').reset();
     selectedTodos = [];
     renderTodoList();
 
-    showSuccess('Event submitted for moderation! A moderator will review it soon.', 'suggestSuccess');
+    // Update button text after successful submission
+    await updateSubmitButtonText();
+
+    showSuccess('Event submitted! A moderator will review it soon.', 'suggestSuccess');
 
     // Close modal after 2 seconds
     setTimeout(() => {
       document.getElementById('suggestModal').classList.remove('show');
       clearMessages();
+      // Reload events to reflect any auto-approved admin events
+      loadEvents();
     }, 2000);
   } catch (err) {
     showError(err.message, 'suggestError');
@@ -414,4 +452,23 @@ function clearMessages() {
   document.querySelectorAll('.error-message, .success-message').forEach(el => {
     el.classList.remove('show');
   });
+}
+
+/**
+ * Update submit button text based on user role
+ */
+async function updateSubmitButtonText() {
+  try {
+    const user = await API.auth.me();
+    const submitBtn = document.getElementById('submitEventBtn');
+    if (submitBtn) {
+      if (user.isModerator) {
+        submitBtn.textContent = 'Submit Event';
+      } else {
+        submitBtn.textContent = 'Submit for Approval';
+      }
+    }
+  } catch (err) {
+    console.error('Error checking user role:', err);
+  }
 }

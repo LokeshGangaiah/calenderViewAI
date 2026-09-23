@@ -23,30 +23,43 @@ router.get('/', (req, res) => {
 
 /**
  * POST /api/events
- * Authenticated - create new event (goes to pending by default)
+ * Authenticated - create new event (goes to pending by default, or approved for admins)
  * Body: { title, date_start, date_end, todos: ["todo1", "todo2"] }
  */
 router.post('/', requireAuth, (req, res) => {
   const { title, date_start, date_end, todos } = req.body;
   const userId = req.session.userId;
+  const isModerator = req.session.isModerator;
 
   // Validate
-  if (!title || !date_start) {
-    return res.status(400).json({ error: 'Title and date_start required' });
+  if (!title || !date_start || !date_end) {
+    return res.status(400).json({ error: 'Title, date_start, and date_end are required' });
   }
 
   if (title.trim().length === 0) {
     return res.status(400).json({ error: 'Title cannot be empty' });
   }
 
-  const actualEndDate = date_end || date_start;
+  // Validate start date is not in the past
+  const today = new Date().toISOString().split('T')[0];
+  if (date_start < today) {
+    return res.status(400).json({ error: 'Start date cannot be in the past' });
+  }
+
+  // Validate end date is not before start date
+  if (date_end < date_start) {
+    return res.status(400).json({ error: 'End date cannot be earlier than start date' });
+  }
 
   try {
+    // Determine status: 'approved' for admins, 'pending' for regular users
+    const status = isModerator ? 'approved' : 'pending';
+
     // Insert event
     const result = db.prepare(`
       INSERT INTO events (title, date_start, date_end, created_by_user_id, status)
-      VALUES (?, ?, ?, ?, 'pending')
-    `).run(title, date_start, actualEndDate, userId);
+      VALUES (?, ?, ?, ?, ?)
+    `).run(title, date_start, date_end, userId, status);
 
     const eventId = result.lastInsertRowid;
 
@@ -61,9 +74,10 @@ router.post('/', requireAuth, (req, res) => {
     }
 
     const newEvent = getEventWithTodos(eventId);
+    const message = isModerator ? 'Event created successfully!' : 'Event submitted for moderation';
     return res.status(201).json({
       success: true,
-      message: 'Event submitted for moderation',
+      message: message,
       event: newEvent
     });
   } catch (err) {
@@ -117,6 +131,20 @@ router.patch('/:id', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Title cannot be empty' });
   }
 
+  const finalStartDate = date_start || event.date_start;
+  const finalEndDate = date_end || event.date_end;
+
+  // Validate start date is not in the past
+  const today = new Date().toISOString().split('T')[0];
+  if (finalStartDate < today) {
+    return res.status(400).json({ error: 'Start date cannot be in the past' });
+  }
+
+  // Validate end date is not before start date
+  if (finalEndDate < finalStartDate) {
+    return res.status(400).json({ error: 'End date cannot be earlier than start date' });
+  }
+
   try {
     // Update event
     db.prepare(`
@@ -125,8 +153,8 @@ router.patch('/:id', requireAuth, (req, res) => {
       WHERE id = ?
     `).run(
       title || event.title,
-      date_start || event.date_start,
-      date_end || event.date_end,
+      finalStartDate,
+      finalEndDate,
       eventId
     );
 
