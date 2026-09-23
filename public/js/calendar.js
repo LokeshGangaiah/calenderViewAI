@@ -8,7 +8,6 @@ let allEvents = [];
 let selectedTodos = [];
 let editingEventId = null;
 let editingTodos = [];
-let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Get current user info
