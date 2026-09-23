@@ -23,7 +23,7 @@ async function loadEvents() {
     allEvents = await API.events.list();
   } catch (err) {
     console.error('Error loading events:', err);
-    showError('Failed to load events');
+    showFormError('Failed to load events');
   }
 }
 
@@ -320,7 +320,7 @@ function addEditTodo() {
   const todoText = input.value.trim();
 
   if (!todoText) {
-    showError('Please enter a to-do item', 'editError');
+    showFormError('Please enter a to-do item', 'editError');
     return;
   }
 
@@ -350,26 +350,26 @@ async function submitEditEvent(e) {
   const dateEnd = document.getElementById('editEventDateEnd').value;
 
   if (!title || !dateStart || !dateEnd) {
-    showError('Please fill in all required fields', 'editError');
+    showFormError('Please fill in all required fields', 'editError');
     return;
   }
 
   const today = new Date();
   const todayStr = formatDate(today);
   if (dateStart < todayStr) {
-    showError('Start date cannot be in the past', 'editError');
+    showFormError('Start date cannot be in the past', 'editError');
     return;
   }
 
   if (dateEnd < dateStart) {
-    showError('End date cannot be earlier than start date', 'editError');
+    showFormError('End date cannot be earlier than start date', 'editError');
     return;
   }
 
   try {
     await API.events.update(eventId, title, dateStart, dateEnd, editingTodos);
 
-    showSuccess('Event updated successfully!', 'editSuccess');
+    showFormSuccess('Event updated successfully!', 'editSuccess');
 
     // Close modal after 2 seconds
     setTimeout(async () => {
@@ -380,7 +380,7 @@ async function submitEditEvent(e) {
       renderCalendar();
     }, 2000);
   } catch (err) {
-    showError(err.message, 'editError');
+    showFormError(err.message, 'editError');
   }
 }
 
@@ -488,7 +488,7 @@ function addTodo() {
   const todoText = input.value.trim();
 
   if (!todoText) {
-    showError('Please enter a to-do item', 'suggestError');
+    showFormError('Please enter a to-do item', 'suggestError');
     return;
   }
 
@@ -530,19 +530,19 @@ async function submitEvent(e) {
   const dateEnd = document.getElementById('eventDateEnd').value;
 
   if (!title || !dateStart || !dateEnd) {
-    showError('Please fill in all required fields', 'suggestError');
+    showFormError('Please fill in all required fields', 'suggestError');
     return;
   }
 
   const today = new Date();
   const todayStr = formatDate(today);
   if (dateStart < todayStr) {
-    showError('Start date cannot be in the past', 'suggestError');
+    showFormError('Start date cannot be in the past', 'suggestError');
     return;
   }
 
   if (dateEnd < dateStart) {
-    showError('End date cannot be earlier than start date', 'suggestError');
+    showFormError('End date cannot be earlier than start date', 'suggestError');
     return;
   }
 
@@ -555,7 +555,7 @@ async function submitEvent(e) {
 
     await updateSubmitButtonText();
 
-    showSuccess(result.message, 'suggestSuccess');
+    showFormSuccess(result.message, 'suggestSuccess');
 
     // Close modal after 2 seconds - AWAIT loadEvents
     setTimeout(async () => {
@@ -566,7 +566,7 @@ async function submitEvent(e) {
       renderCalendar();
     }, 2000);
   } catch (err) {
-    showError(err.message, 'suggestError');
+    showFormError(err.message, 'suggestError');
   }
 }
 
@@ -591,7 +591,7 @@ function formatDateDisplay(date) {
 /**
  * Show error message
  */
-function showError(message, elementId = 'error') {
+function showFormError(message, elementId = 'error') {
   const element = document.getElementById(elementId);
   if (element) {
     element.textContent = message;
@@ -602,7 +602,7 @@ function showError(message, elementId = 'error') {
 /**
  * Show success message
  */
-function showSuccess(message, elementId = 'success') {
+function showFormSuccess(message, elementId = 'success') {
   const element = document.getElementById(elementId);
   if (element) {
     element.textContent = message;

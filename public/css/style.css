@@ -327,6 +327,7 @@ select:focus {
 
 .calendar {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
@@ -372,7 +373,9 @@ select:focus {
 }
 
 .event-badge {
-  display: inline-block;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   background-color: #dbeafe;
   color: var(--primary);
   padding: 0.25rem 0.5rem;
