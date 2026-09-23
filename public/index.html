@@ -69,6 +69,9 @@
       <div id="modalBody" class="modal-body">
         <!-- Populated by JavaScript -->
       </div>
+      <div id="modalActions" class="modal-actions">
+        <!-- Edit/Delete buttons appear here -->
+      </div>
     </div>
   </div>
 
@@ -129,6 +132,69 @@
 
         <div id="suggestError" class="error-message"></div>
         <div id="suggestSuccess" class="success-message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Event Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close">&times;</span>
+      <h2>Edit Event</h2>
+      <form id="editForm" class="event-form">
+        <input type="hidden" id="editEventId">
+        
+        <div class="form-group">
+          <label for="editEventTitle">Event Title *</label>
+          <input
+            type="text"
+            id="editEventTitle"
+            required
+            placeholder="e.g., Community Yoga Class"
+          >
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editEventDateStart">Start Date *</label>
+            <input
+              type="date"
+              id="editEventDateStart"
+              required
+            >
+          </div>
+          <div class="form-group">
+            <label for="editEventDateEnd">End Date *</label>
+            <input
+              type="date"
+              id="editEventDateEnd"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editTodoInput">Add To-Do Items</label>
+          <div class="todo-input-group">
+            <input
+              type="text"
+              id="editTodoInput"
+              placeholder="e.g., Prepare materials"
+            >
+            <button type="button" id="addEditTodoBtn" class="btn btn-small">Add</button>
+          </div>
+          <ul id="editTodoList" class="todo-list">
+            <!-- Existing todos appear here -->
+          </ul>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="submitEditBtn" class="btn btn-primary">Save Changes</button>
+          <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+        </div>
+
+        <div id="editError" class="error-message"></div>
+        <div id="editSuccess" class="success-message"></div>
       </form>
     </div>
   </div>

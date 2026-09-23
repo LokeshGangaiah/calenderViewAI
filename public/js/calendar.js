@@ -6,8 +6,18 @@
 let currentDate = new Date(2026, 8, 1); // Start with September 2026
 let allEvents = [];
 let selectedTodos = [];
+let editingEventId = null;
+let editingTodos = [];
+let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Get current user info
+  try {
+    currentUser = await API.auth.me();
+  } catch (err) {
+    console.error('Error getting current user:', err);
+  }
+  
   await loadEvents();
   renderCalendar();
   setupEventListeners();
@@ -178,6 +188,32 @@ function updateEventsSidebar() {
 }
 
 /**
+ * Check if current user can edit an event
+ */
+function canEditEvent(evt) {
+  if (!currentUser) return false;
+  
+  // Moderator can edit any event
+  if (currentUser.isModerator) return true;
+  
+  // Regular user can only edit own pending events
+  return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+}
+
+/**
+ * Check if current user can delete an event
+ */
+function canDeleteEvent(evt) {
+  if (!currentUser) return false;
+  
+  // Moderator can delete any event
+  if (currentUser.isModerator) return true;
+  
+  // Regular user can only delete own pending events
+  return evt.created_by_user_id === currentUser.id && evt.status === 'pending';
+}
+
+/**
  * Show event detail modal
  */
 function showEventModal(evt) {
@@ -191,16 +227,37 @@ function showEventModal(evt) {
       ${evt.date_end && evt.date_end !== evt.date_start ?
         `<p><strong>End Date:</strong> ${formatDateDisplay(new Date(evt.date_end))}</p>` : ''}
       ${evt.creator_username ? `<p><strong>Created by:</strong> ${evt.creator_username}</p>` : ''}
+      ${evt.status ? `<p><strong>Status:</strong> ${evt.status}</p>` : ''}
       ${evt.todos && evt.todos.length > 0 ? `
         <div>
           <strong>To-Do Items:</strong>
           <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-            ${evt.todos.map(todo => `<li>${todo.todo_text}</li>`).join('')}
+            ${evt.todos.map(todo => `<li>${escapeHtml(todo.todo_text)}</li>`).join('')}
           </ul>
         </div>
       ` : ''}
     </div>
   `;
+
+  // Add edit/delete buttons if permitted
+  const modalActions = document.getElementById('modalActions');
+  modalActions.innerHTML = '';
+  
+  if (canEditEvent(evt)) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-primary';
+    editBtn.textContent = '✎ Edit';
+    editBtn.addEventListener('click', () => openEditModal(evt));
+    modalActions.appendChild(editBtn);
+  }
+  
+  if (canDeleteEvent(evt)) {
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-danger';
+    deleteBtn.textContent = '🗑 Delete';
+    deleteBtn.addEventListener('click', () => deleteEvent(evt.id));
+    modalActions.appendChild(deleteBtn);
+  }
 
   modal.classList.add('show');
 }
@@ -225,18 +282,150 @@ function showDayEvents(date) {
   } else {
     body.innerHTML = dayEvents.map(evt => `
       <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-        <h3 style="margin-bottom: 0.5rem;">${evt.title}</h3>
-        ${evt.creator_username ? `<p style="font-size: 0.9rem; color: var(--secondary);">By ${evt.creator_username}</p>` : ''}
+        <h3 style="margin-bottom: 0.5rem;">${escapeHtml(evt.title)}</h3>
+        ${evt.creator_username ? `<p style="font-size: 0.9rem; color: var(--secondary);">By ${escapeHtml(evt.creator_username)}</p>` : ''}
+        ${evt.status ? `<p style="font-size: 0.9rem; color: var(--secondary);">Status: ${evt.status}</p>` : ''}
         ${evt.todos && evt.todos.length > 0 ? `
           <ul style="margin-top: 0.5rem; padding-left: 1.5rem; font-size: 0.9rem;">
-            ${evt.todos.map(todo => `<li>${todo.todo_text}</li>`).join('')}
+            ${evt.todos.map(todo => `<li>${escapeHtml(todo.todo_text)}</li>`).join('')}
           </ul>
         ` : ''}
       </div>
     `).join('');
   }
 
+  // Clear actions for day view
+  const modalActions = document.getElementById('modalActions');
+  modalActions.innerHTML = '';
+
   modal.classList.add('show');
+}
+
+/**
+ * Open edit modal for event
+ */
+function openEditModal(evt) {
+  editingEventId = evt.id;
+  editingTodos = evt.todos ? evt.todos.map(t => t.todo_text) : [];
+  
+  document.getElementById('editEventId').value = evt.id;
+  document.getElementById('editEventTitle').value = evt.title;
+  document.getElementById('editEventDateStart').value = evt.date_start;
+  document.getElementById('editEventDateEnd').value = evt.date_end;
+  
+  renderEditTodoList();
+  
+  // Close the event modal
+  document.getElementById('eventModal').classList.remove('show');
+  // Open the edit modal
+  document.getElementById('editModal').classList.add('show');
+}
+
+/**
+ * Render edit todo list
+ */
+function renderEditTodoList() {
+  const list = document.getElementById('editTodoList');
+  list.innerHTML = editingTodos.map((todo, idx) => `
+    <li class="todo-item">
+      <span>${escapeHtml(todo)}</span>
+      <button type="button" class="todo-remove" onclick="removeEditTodo(${idx})">×</button>
+    </li>
+  `).join('');
+}
+
+/**
+ * Add todo to edit form
+ */
+function addEditTodo() {
+  const input = document.getElementById('editTodoInput');
+  const todoText = input.value.trim();
+
+  if (!todoText) {
+    showError('Please enter a to-do item', 'editError');
+    return;
+  }
+
+  editingTodos.push(todoText);
+  input.value = '';
+
+  renderEditTodoList();
+}
+
+/**
+ * Remove todo from edit list
+ */
+function removeEditTodo(idx) {
+  editingTodos.splice(idx, 1);
+  renderEditTodoList();
+}
+
+/**
+ * Submit edit form
+ */
+async function submitEditEvent(e) {
+  e.preventDefault();
+
+  const eventId = document.getElementById('editEventId').value;
+  const title = document.getElementById('editEventTitle').value.trim();
+  const dateStart = document.getElementById('editEventDateStart').value;
+  const dateEnd = document.getElementById('editEventDateEnd').value;
+
+  if (!title || !dateStart || !dateEnd) {
+    showError('Please fill in all required fields', 'editError');
+    return;
+  }
+
+  // Validate start date is not in the past
+  const today = new Date();
+  const todayStr = formatDate(today);
+  if (dateStart < todayStr) {
+    showError('Start date cannot be in the past', 'editError');
+    return;
+  }
+
+  // Validate end date is not before start date
+  if (dateEnd < dateStart) {
+    showError('End date cannot be earlier than start date', 'editError');
+    return;
+  }
+
+  try {
+    await API.events.update(eventId, title, dateStart, dateEnd, editingTodos);
+
+    showSuccess('Event updated successfully!', 'editSuccess');
+
+    // Close modal after 2 seconds
+    setTimeout(() => {
+      document.getElementById('editModal').classList.remove('show');
+      clearMessages();
+      // Reload events
+      loadEvents();
+      renderCalendar();
+    }, 2000);
+  } catch (err) {
+    showError(err.message, 'editError');
+  }
+}
+
+/**
+ * Delete event
+ */
+async function deleteEvent(eventId) {
+  if (!confirm('Are you sure you want to delete this event?')) return;
+
+  try {
+    await API.events.delete(eventId);
+    
+    showStatusMessage('Event deleted successfully!');
+    document.getElementById('eventModal').classList.remove('show');
+    
+    // Reload events
+    await loadEvents();
+    renderCalendar();
+  } catch (err) {
+    alert('Error deleting event: ' + err.message);
+  }
 }
 
 /**
@@ -285,8 +474,14 @@ function setupEventListeners() {
   // Suggest form
   document.getElementById('suggestForm').addEventListener('submit', submitEvent);
 
+  // Edit form
+  document.getElementById('editForm').addEventListener('submit', submitEditEvent);
+
   // Add todo button
   document.getElementById('addTodoBtn').addEventListener('click', addTodo);
+  
+  // Add edit todo button
+  document.getElementById('addEditTodoBtn').addEventListener('click', addEditTodo);
 
   // Set today's date as default and minimum
   const today = new Date();
@@ -294,6 +489,8 @@ function setupEventListeners() {
   document.getElementById('eventDateStart').value = todayStr;
   document.getElementById('eventDateStart').min = todayStr;
   document.getElementById('eventDateEnd').min = todayStr;
+  document.getElementById('editEventDateStart').min = todayStr;
+  document.getElementById('editEventDateEnd').min = todayStr;
 
   // Update end date min when start date changes
   document.getElementById('eventDateStart').addEventListener('change', (e) => {
@@ -301,7 +498,18 @@ function setupEventListeners() {
     const endDateInput = document.getElementById('eventDateEnd');
     if (startDate) {
       endDateInput.min = startDate;
-      // If end date is before new start date, update it
+      if (endDateInput.value < startDate) {
+        endDateInput.value = startDate;
+      }
+    }
+  });
+
+  // Update end date min when start date changes in edit form
+  document.getElementById('editEventDateStart').addEventListener('change', (e) => {
+    const startDate = e.target.value;
+    const endDateInput = document.getElementById('editEventDateEnd');
+    if (startDate) {
+      endDateInput.min = startDate;
       if (endDateInput.value < startDate) {
         endDateInput.value = startDate;
       }
@@ -337,7 +545,7 @@ function renderTodoList() {
   const list = document.getElementById('todoList');
   list.innerHTML = selectedTodos.map((todo, idx) => `
     <li class="todo-item">
-      <span>${todo}</span>
+      <span>${escapeHtml(todo)}</span>
       <button type="button" class="todo-remove" onclick="removeTodo(${idx})">×</button>
     </li>
   `).join('');
@@ -381,7 +589,7 @@ async function submitEvent(e) {
   }
 
   try {
-    await API.events.create(title, dateStart, dateEnd, selectedTodos);
+    const result = await API.events.create(title, dateStart, dateEnd, selectedTodos);
 
     // Reset form
     document.getElementById('suggestForm').reset();
@@ -391,7 +599,7 @@ async function submitEvent(e) {
     // Update button text after successful submission
     await updateSubmitButtonText();
 
-    showSuccess('Event submitted! A moderator will review it soon.', 'suggestSuccess');
+    showSuccess(result.message, 'suggestSuccess');
 
     // Close modal after 2 seconds
     setTimeout(() => {
@@ -399,6 +607,7 @@ async function submitEvent(e) {
       clearMessages();
       // Reload events to reflect any auto-approved admin events
       loadEvents();
+      renderCalendar();
     }, 2000);
   } catch (err) {
     showError(err.message, 'suggestError');
@@ -446,6 +655,24 @@ function showSuccess(message, elementId = 'success') {
 }
 
 /**
+ * Show temporary status message
+ */
+function showStatusMessage(message) {
+  const div = document.createElement('div');
+  div.className = 'success-message show';
+  div.style.position = 'fixed';
+  div.style.top = '80px';
+  div.style.right = '20px';
+  div.style.zIndex = '9999';
+  div.textContent = message;
+  document.body.appendChild(div);
+
+  setTimeout(() => {
+    div.remove();
+  }, 2000);
+}
+
+/**
  * Clear all messages
  */
 function clearMessages() {
@@ -471,4 +698,18 @@ async function updateSubmitButtonText() {
   } catch (err) {
     console.error('Error checking user role:', err);
   }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
 }

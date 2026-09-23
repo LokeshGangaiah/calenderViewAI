@@ -1,112 +1,163 @@
 /**
- * API wrapper for backend calls
- * Handles authentication redirect on 401
+ * API Wrapper
+ * Abstracts HTTP calls to backend
  */
 
 const API = {
-  baseUrl: '/api',
-
-  async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    });
-
-    if (response.status === 401) {
-      // Unauthenticated - redirect to login
-      window.location.href = '/login';
-      return;
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
-    }
-
-    return data;
-  },
-
-  // Auth endpoints
-  auth: {
-    register(username, password) {
-      return API.request('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ username, password })
-      });
-    },
-
-    login(username, password) {
-      return API.request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password })
-      });
-    },
-
-    logout() {
-      return API.request('/auth/logout', { method: 'POST' });
-    },
-
-    me() {
-      return API.request('/auth/me');
-    }
-  },
-
-  // Event endpoints
   events: {
-    list() {
-      return API.request('/events');
+    /**
+     * List all approved events
+     */
+    list: async () => {
+      const res = await fetch('/api/events');
+      if (!res.ok) throw new Error('Failed to load events');
+      return res.json();
     },
 
-    create(title, date_start, date_end, todos) {
-      return API.request('/events', {
+    /**
+     * Get single event by ID
+     */
+    get: async (id) => {
+      const res = await fetch(`/api/events/${id}`);
+      if (!res.ok) throw new Error('Event not found');
+      return res.json();
+    },
+
+    /**
+     * Create new event
+     */
+    create: async (title, dateStart, dateEnd, todos = []) => {
+      const res = await fetch('/api/events', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          date_start,
-          date_end,
-          todos: todos || []
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, date_start: dateStart, date_end: dateEnd, todos })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create event');
+      }
+      return res.json();
     },
 
-    get(id) {
-      return API.request(`/events/${id}`);
-    },
-
-    update(id, title, date_start, date_end, todos) {
-      return API.request(`/events/${id}`, {
+    /**
+     * Update existing event
+     */
+    update: async (id, title, dateStart, dateEnd, todos = []) => {
+      const res = await fetch(`/api/events/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          title,
-          date_start,
-          date_end,
-          todos
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, date_start: dateStart, date_end: dateEnd, todos })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update event');
+      }
+      return res.json();
     },
 
-    delete(id) {
-      return API.request(`/events/${id}`, { method: 'DELETE' });
+    /**
+     * Delete event
+     */
+    delete: async (id) => {
+      const res = await fetch(`/api/events/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to delete event');
+      }
+      return res.json();
     }
   },
 
-  // Moderation endpoints
+  auth: {
+    /**
+     * Get current authenticated user
+     */
+    me: async () => {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) throw new Error('Not authenticated');
+      return res.json();
+    },
+
+    /**
+     * Login
+     */
+    login: async (username, password) => {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Login failed');
+      }
+      return res.json();
+    },
+
+    /**
+     * Register
+     */
+    register: async (username, password) => {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Registration failed');
+      }
+      return res.json();
+    },
+
+    /**
+     * Logout
+     */
+    logout: async () => {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!res.ok) throw new Error('Logout failed');
+      return res.json();
+    }
+  },
+
   moderation: {
-    pending() {
-      return API.request('/moderation/pending');
+    /**
+     * Get pending events for moderation
+     */
+    pending: async () => {
+      const res = await fetch('/api/moderation/pending');
+      if (!res.ok) throw new Error('Failed to load pending events');
+      return res.json();
     },
 
-    approve(id) {
-      return API.request(`/moderation/approve/${id}`, { method: 'PATCH' });
+    /**
+     * Approve event
+     */
+    approve: async (id) => {
+      const res = await fetch(`/api/moderation/approve/${id}`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to approve event');
+      }
+      return res.json();
     },
 
-    reject(id) {
-      return API.request(`/moderation/reject/${id}`, { method: 'PATCH' });
+    /**
+     * Reject event
+     */
+    reject: async (id) => {
+      const res = await fetch(`/api/moderation/reject/${id}`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to reject event');
+      }
+      return res.json();
     }
   }
 };

@@ -74,7 +74,7 @@ router.post('/', requireAuth, (req, res) => {
     }
 
     const newEvent = getEventWithTodos(eventId);
-    const message = isModerator ? 'Event created successfully!' : 'Event submitted for moderation';
+    const message = isModerator ? 'Event created successfully!' : 'Event submitted for approval';
     return res.status(201).json({
       success: true,
       message: message,
@@ -103,12 +103,15 @@ router.get('/:id', (req, res) => {
 
 /**
  * PATCH /api/events/:id
- * Authenticated - edit own pending event
+ * Authenticated - edit event with access control
+ * Regular users can only edit own pending events
+ * Moderators can edit any event
  * Body: { title, date_start, date_end, todos }
  */
 router.patch('/:id', requireAuth, (req, res) => {
   const eventId = req.params.id;
   const userId = req.session.userId;
+  const isModerator = req.session.isModerator;
   const { title, date_start, date_end, todos } = req.body;
 
   // Get event
@@ -117,13 +120,14 @@ router.patch('/:id', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  // Check ownership (only owner can edit, and only if pending)
-  if (event.created_by_user_id !== userId) {
+  // Check access control
+  if (!isModerator && event.created_by_user_id !== userId) {
     return res.status(403).json({ error: 'You can only edit your own events' });
   }
 
-  if (event.status !== 'pending') {
-    return res.status(400).json({ error: 'Can only edit pending events' });
+  // Regular users can only edit pending events
+  if (!isModerator && event.status !== 'pending') {
+    return res.status(403).json({ error: 'You can only edit pending events' });
   }
 
   // Validate
@@ -146,15 +150,25 @@ router.patch('/:id', requireAuth, (req, res) => {
   }
 
   try {
+    // Determine new status:
+    // - If moderator editing: keep current status
+    // - If regular user editing approved event: change to pending (needs re-approval)
+    // - If regular user editing pending event: keep pending
+    let newStatus = event.status;
+    if (!isModerator && event.status === 'approved') {
+      newStatus = 'pending';
+    }
+
     // Update event
     db.prepare(`
       UPDATE events
-      SET title = ?, date_start = ?, date_end = ?
+      SET title = ?, date_start = ?, date_end = ?, status = ?
       WHERE id = ?
     `).run(
       title || event.title,
       finalStartDate,
       finalEndDate,
+      newStatus,
       eventId
     );
 
@@ -170,7 +184,12 @@ router.patch('/:id', requireAuth, (req, res) => {
     }
 
     const updated = getEventWithTodos(eventId);
-    return res.json({ success: true, event: updated });
+    const message = isModerator ? 'Event updated successfully!' : 'Event updated. Please note: approved events are sent back for re-approval.';
+    return res.json({ 
+      success: true, 
+      message: message,
+      event: updated 
+    });
   } catch (err) {
     console.error('Error updating event:', err);
     return res.status(500).json({ error: 'Failed to update event' });
@@ -179,11 +198,14 @@ router.patch('/:id', requireAuth, (req, res) => {
 
 /**
  * DELETE /api/events/:id
- * Authenticated - delete own pending event
+ * Authenticated - delete event with access control
+ * Regular users can only delete own pending events
+ * Moderators can delete any event
  */
 router.delete('/:id', requireAuth, (req, res) => {
   const eventId = req.params.id;
   const userId = req.session.userId;
+  const isModerator = req.session.isModerator;
 
   // Get event
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
@@ -191,9 +213,14 @@ router.delete('/:id', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  // Check ownership
-  if (event.created_by_user_id !== userId) {
+  // Check access control
+  if (!isModerator && event.created_by_user_id !== userId) {
     return res.status(403).json({ error: 'You can only delete your own events' });
+  }
+
+  // Regular users can only delete pending events
+  if (!isModerator && event.status !== 'pending') {
+    return res.status(403).json({ error: 'You can only delete pending events' });
   }
 
   try {
